@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+        content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Dietas">
+    <link rel="apple-touch-icon" href="/icon.png">
+    <link rel="manifest" href="/manifest.json">
+    <title>MACROMIND v1.5.0</title>
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+    <meta http-equiv="Pragma" content="no-cache" />
+    <meta http-equiv="Expires" content="0" />
+    <script>
+        function forceUpdate() {
+            localStorage.clear();
+            sessionStorage.clear();
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.getRegistrations().then(function (registrations) {
+                    for (let registration of registrations) { registration.unregister(); }
+                });
+            }
+            window.location.reload(true);
+        }
+    </script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=SF+Pro+Display:wght@300;400;500;600;700&display=swap');
+
+        :root {
+            --bg-color: #000000;
+            --text-primary: #ffffff;
+            --text-secondary: rgba(255, 255, 255, 0.5);
+            --card-bg: #1c1c1e;
+            --border-color: rgba(255, 255, 255, 0.1);
+            --input-bg: #2c2c2e;
+            --accent-color: #0A84FF;
+            --progress-track: rgba(255, 255, 255, 0.1);
+        }
+
+        .light-mode {
+            --bg-color: #F2F2F7;
+            --text-primary: #000000;
+            --text-secondary: rgba(0, 0, 0, 0.5);
+            --card-bg: #FFFFFF;
+            --border-color: rgba(0, 0, 0, 0.1);
+            --input-bg: #E5E5EA;
+            --accent-color: #007AFF;
+            --progress-track: rgba(0, 0, 0, 0.05);
+        }
+
+        html,
+        body,
+        #root {
+            height: 100dvh;
+            width: 100%;
+            margin: 0;
+            padding: 0;
+            background-color: var(--bg-color);
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            -webkit-font-smoothing: antialiased;
+            color: var(--text-primary);
+            transition: background-color 0.3s ease, color 0.3s ease;
+            overflow-x: hidden;
+        }
+
+        .ios-blur {
+            backdrop-filter: blur(30px);
+            -webkit-backdrop-filter: blur(30px);
+            background-color: rgba(28, 28, 30, 0.85);
+            border-bottom: 0.5px solid var(--border-color);
+        }
+
+        .light-mode .ios-blur {
+            background-color: rgba(255, 255, 255, 0.9);
+        }
+
+        .ios-card {
+            background-color: var(--card-bg);
+            border: 0.5px solid var(--border-color);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+        }
+
+        .light-mode .ios-card {
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+        }
+
+        /* Critical Fix for Dropdowns in Dark Mode */
+
+        select {
+            color: var(--text-primary);
+            background-color: var(--input-bg);
+            -webkit-appearance: none;
+            background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+            background-repeat: no-repeat;
+            background-position: right 1rem center;
+            background-size: 1em;
+        }
+
+        .light-mode select {
+            background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+        }
+
+        select option {
+            background-color: var(--input-bg) !important;
+            color: var(--text-primary) !important;
+        }
+
+        .light-mode select option {
+            background-color: #ffffff !important;
+            color: #000000 !important;
+        }
+
+        .text-main {
+            color: var(--text-primary);
+        }
+
+        .text-sub {
+            color: var(--text-secondary);
+        }
+
+        input[type=number]::-webkit-inner-spin-button,
+        input[type=number]::-webkit-outer-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+
+        @media print {
+            :root {
+                --bg-color: #ffffff !important;
+                --text-primary: #000000 !important;
+                --text-secondary: #444444 !important;
+                --card-bg: #ffffff !important;
+                --border-color: #eeeeee !important;
+                --input-bg: #f5f5f5 !important;
+            }
+
+            * {
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+                color: black !important;
+                /* Force black text for everything by default */
+            }
+
+            .text-main,
+            h1,
+            h2,
+            h3,
+            h4,
+            span,
+            div,
+            p {
+                color: black !important;
+            }
+
+            .text-sub {
+                color: #444 !important;
+            }
+
+            .no-print,
+            button,
+            .ios-blur:not(.macro-tracker-print),
+            .fixed,
+            .nav-indicator,
+            .fa-check,
+            .fa-circle-notch,
+            i.absolute {
+                display: none !important;
+            }
+
+            body,
+            html,
+            #root {
+                height: auto !important;
+                overflow: visible !important;
+                background: white !important;
+                color: black !important;
+                margin: 0 !important;
+                padding: 0 !important;
+            }
+
+            .printable-content {
+                padding: 0 !important;
+                margin: 0 !important;
+                width: 100% !important;
+            }
+
+            /* Macro Tracker Compact for Print */
+            .ios-blur {
+                position: static !important;
+                backdrop-filter: none !important;
+                background: white !important;
+                border: none !important;
+                padding: 0 !important;
+                margin-bottom: 20px !important;
+            }
+
+            .macro-tracker-print h2 {
+                font-size: 11px !important;
+                margin-bottom: 4px !important;
+                font-weight: 800 !important;
+            }
+
+            .macro-tracker-print .text-4xl {
+                font-size: 26px !important;
+                line-height: 1 !important;
+            }
+
+            .macro-tracker-print .text-lg {
+                font-size: 16px !important;
+            }
+
+            .macro-tracker-print .h-14 {
+                display: none !important;
+                /* Hide circular fire in print */
+            }
+
+            /* Progress Bar labels visibility */
+            .macro-tracker-print .text-sub {
+                color: #444 !important;
+                font-weight: 800 !important;
+            }
+
+            /* Meal Items Compact */
+            .ios-card {
+                border: 1px solid #ddd !important;
+                box-shadow: none !important;
+                background: white !important;
+                color: black !important;
+                page-break-inside: avoid;
+                margin-bottom: 15px !important;
+                border-radius: 12px !important;
+                overflow: hidden !important;
+            }
+
+            .meal-item-card {
+                display: grid !important;
+                grid-template-columns: 140px 1fr !important;
+                min-height: 120px !important;
+            }
+
+            /* Fix image framing */
+            .meal-item-image-container {
+                height: 100% !important;
+                width: 140px !important;
+                position: relative !important;
+                border-right: 1px solid #ddd !important;
+            }
+
+            .meal-item-image-container img {
+                width: 100% !important;
+                height: 100% !important;
+                object-fit: cover !important;
+                display: block !important;
+            }
+
+            .meal-item-content {
+                padding: 12px 20px !important;
+                display: flex !important;
+                flex-direction: column !important;
+                justify-content: flex-start !important;
+            }
+
+            .meal-item-content h3 {
+                font-size: 18px !important;
+                margin-bottom: 2px !important;
+                font-weight: 800 !important;
+            }
+
+            .meal-item-content .text-xs {
+                font-size: 11px !important;
+                font-weight: 600 !important;
+            }
+
+            /* Ingredients list compact */
+            .meal-item-ingredients {
+                margin-top: 10px !important;
+                padding-top: 8px !important;
+                display: flex !important;
+                flex-wrap: wrap !important;
+                gap: 4px 15px !important;
+                border-top: 1px solid #f0f0f0 !important;
+            }
+
+            .ingredient-row {
+                font-size: 10px !important;
+                display: flex !important;
+                gap: 5px !important;
+                align-items: center !important;
+                background: #f9f9f9 !important;
+                padding: 2px 8px !important;
+                border-radius: 6px !important;
+            }
+
+            .ingredient-row .bg-\[var\(--input-bg\)\] {
+                background: transparent !important;
+                border: none !important;
+                padding: 0 !important;
+                font-weight: 800 !important;
+            }
+
+            /* Editor View Adjustments */
+            input,
+            select {
+                border: none !important;
+                background: transparent !important;
+                padding: 0 !important;
+                font-size: inherit !important;
+                color: black !important;
+                font-weight: bold !important;
+            }
+
+            .grid-cols-2 {
+                grid-template-columns: repeat(4, 1fr) !important;
+                gap: 12px !important;
+            }
+
+            .p-8 {
+                padding: 12px !important;
+            }
+
+            .p-5 {
+                padding: 8px !important;
+            }
+        }
+    </style>
+
+    <script type="importmap">
+{
+  "imports": {
+    "react/": "https://esm.sh/react@^19.2.4/",
+    "react": "https://esm.sh/react@^19.2.4",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.4/"
+  }
+}
+</script>
+  <script type="module" crossorigin src="/assets/index-BJlH6K0G.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index-tn0RQdqM.css">
+</head>
+
+<body>
+    <div id="root"></div>
+</body>
+
+</html>
