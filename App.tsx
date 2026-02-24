@@ -5,36 +5,39 @@ import { DietEditor } from './components/DietEditor';
 import { DietViewer } from './components/DietViewer';
 import { useI18n } from './i18n';
 
-// 1. CLASS ERROR BOUNDARY (Properly typed to avoid build errors)
+// --- HYPER-ROBUST GET PARAM (OUTSIDE COMPONENT) ---
+function getGlobalParam(name: string): string | null {
+  const url = window.location.href;
+  // This regex is a tank: it finds the param regardless of ?, &, or #
+  const regex = new RegExp(`[?&#]${name}=([^&#]*)`, 'i');
+  const match = url.match(regex);
+  if (match && match[1]) return decodeURIComponent(match[1]);
+
+  // Last resort manual scan
+  const parts = url.split(/[?&#]/);
+  for (const p of parts) {
+    if (p.toLowerCase().startsWith(name.toLowerCase() + '=')) {
+      return p.split('=')[1];
+    }
+  }
+  return null;
+}
+
+// 1. CLASS ERROR BOUNDARY (Properly typed)
 interface EBProps { children: ReactNode; }
 interface EBState { hasError: boolean; error: any; }
 
 class ErrorBoundary extends Component<EBProps, EBState> {
   public state: EBState = { hasError: false, error: null };
-
-  static getDerivedStateFromError(error: any): EBState {
-    return { hasError: true, error };
-  }
-
-  componentDidCatch(error: any, errorInfo: any) {
-    console.error("ErrorBoundary caught an error", error, errorInfo);
-  }
-
+  static getDerivedStateFromError(error: any): EBState { return { hasError: true, error }; }
+  componentDidCatch(error: any, errorInfo: any) { console.error("ErrorBoundary:", error, errorInfo); }
   render() {
     if (this.state.hasError) {
       return (
-        <div style={{ background: '#450a0a', color: 'white', padding: '40px', height: '100vh', fontFamily: 'sans-serif', overflow: 'auto' }}>
-          <h1 style={{ color: '#f87171', fontSize: '24px', fontWeight: '900' }}>CRITICAL UI ERROR</h1>
-          <p style={{ opacity: 0.7 }}>Hubo un error en la interfaz de React. Detalle técnico:</p>
-          <pre style={{ background: 'black', padding: '20px', borderRadius: '10px', fontSize: '11px', whiteSpace: 'pre-wrap' }}>
-            {this.state.error?.stack || String(this.state.error)}
-          </pre>
-          <button
-            onClick={() => { localStorage.clear(); window.location.reload(); }}
-            style={{ marginTop: '20px', padding: '15px 30px', background: 'white', color: '#450a0a', border: 'none', borderRadius: '30px', fontWeight: '900', cursor: 'pointer' }}
-          >
-            LIMPIAR Y REINICIAR
-          </button>
+        <div style={{ background: '#450a0a', color: 'white', padding: '40px', height: '100vh', fontFamily: 'sans-serif' }}>
+          <h1 style={{ color: '#f87171', fontWeight: '900' }}>APP ERROR</h1>
+          <pre style={{ background: 'black', padding: '20px', fontSize: '11px', whiteSpace: 'pre-wrap' }}>{String(this.state.error)}</pre>
+          <button onClick={() => { localStorage.clear(); window.location.reload(); }} style={{ padding: '15px', background: 'white', color: 'black', borderRadius: '20px', fontWeight: '900' }}>FIX & REBOOT</button>
         </div>
       );
     }
@@ -52,67 +55,37 @@ const App: React.FC = () => {
 };
 
 const AppContent: React.FC = () => {
-  // HYPER-ROBUST param detection (handles ?, #, and direct string search)
-  const getParam = (name: string) => {
-    // 1. Standard search
-    const s = new URLSearchParams(window.location.search);
-    if (s.get(name)) return s.get(name);
+  const { t, lang, changeLanguage } = useI18n();
 
-    // 2. Hash search (e.g., #dietId=xxx or #/path?dietId=xxx)
-    const h = window.location.hash.substring(1);
-    const hp = new URLSearchParams(h.includes('?') ? h.split('?')[1] : h);
-    if (hp.get(name)) return hp.get(name);
-
-    // 3. Fallback: manual splitting for weird URL formats
-    const all = window.location.href;
-    const parts = all.split(/[?&#]/);
-    for (const p of parts) {
-      if (p.toLowerCase().startsWith(name.toLowerCase() + '=')) {
-        return p.split('=')[1];
-      }
-    }
-    return null;
-  };
-
+  // -- INITIAL STATE WITH FORCED LINK DETECTION --
   const [user, setUser] = useState<User | null>(() => {
-    const dId = getParam('dietId');
-    const role = getParam('role')?.toUpperCase();
+    const dId = getGlobalParam('dietId');
+    const role = getGlobalParam('role')?.toUpperCase();
     const sRole = localStorage.getItem('mm_user_role');
     const sDId = localStorage.getItem('mm_active_diet_id');
 
+    // 1. If URL has dietId, we ARE A CLIENT (unless explicitly builder)
     if (dId) {
       if (role === 'CREATOR') return { id: 'builder', name: 'Coach', role: UserRole.CREATOR };
-      // Force Client role for Link users
+
+      // PERSIST FOR CLIENTS
       localStorage.setItem('mm_user_role', UserRole.CLIENT);
       localStorage.setItem('mm_active_diet_id', dId);
       return { id: 'client-guest', name: 'Client', role: UserRole.CLIENT };
     }
+
+    // 2. Recover previous session
     if (sRole === UserRole.CREATOR) return { id: 'builder', name: 'Coach', role: UserRole.CREATOR };
     if (sRole === UserRole.CLIENT && sDId) return { id: 'client-guest', name: 'Client', role: UserRole.CLIENT };
+
     return null;
   });
 
-  const [diets, setDiets] = useState<Diet[]>([]);
   const [activeDietId, setActiveDietId] = useState<string | null>(() => {
-    return getParam('dietId') || (localStorage.getItem('mm_user_role') === UserRole.CLIENT ? localStorage.getItem('mm_active_diet_id') : null);
+    return getGlobalParam('dietId') || (localStorage.getItem('mm_user_role') === UserRole.CLIENT ? localStorage.getItem('mm_active_diet_id') : null);
   });
 
-  // Aggressive Hash Listener (Handles navigation within PWA/App mode)
-  useEffect(() => {
-    const handleNavigation = () => {
-      const dId = getParam('dietId');
-      if (dId && !user) {
-        setUser({ id: 'client-guest', name: 'Client', role: UserRole.CLIENT });
-        setActiveDietId(dId);
-        localStorage.setItem('mm_user_role', UserRole.CLIENT);
-        localStorage.setItem('mm_active_diet_id', dId);
-      }
-    };
-    window.addEventListener('hashchange', handleNavigation);
-    return () => window.removeEventListener('hashchange', handleNavigation);
-  }, [user]);
-
-  const { t, lang, changeLanguage } = useI18n();
+  const [diets, setDiets] = useState<Diet[]>([]);
   const [loading, setLoading] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
   const [theme, setTheme] = useState<'dark' | 'light'>((localStorage.getItem('mm_theme') as any) || 'dark');
@@ -155,23 +128,38 @@ const AppContent: React.FC = () => {
     setShowDeleteConfirm(null);
   };
 
-  // 4. AGGRESSIVE REDIRECT SPLASH
-  // If we have a dietId but no user yet, show ONLY the loading screen to avoid flickering login buttons
-  if (!user && (getParam('dietId') || localStorage.getItem('mm_active_diet_id'))) {
+  // --- ESCAPE HATCH FOR HASH-LINKS (iOS PWA) ---
+  useEffect(() => {
+    const checker = setInterval(() => {
+      const dId = getGlobalParam('dietId');
+      if (dId && !user) {
+        window.location.reload(); // Force a clean boot with current URL
+      }
+    }, 1000);
+    return () => clearInterval(checker);
+  }, [user]);
+
+  // 4. AGGRESSIVE CLIENT REDIRECT (NO LOGIN UI)
+  const isLinkFound = getGlobalParam('dietId') || localStorage.getItem('mm_active_diet_id');
+
+  if (!user && isLinkFound && getGlobalParam('role') !== 'CREATOR') {
     return (
       <div className="h-full w-full flex flex-col items-center justify-center gap-4 bg-black">
         <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-        <p className="text-white/40 text-xs font-black uppercase tracking-widest">Cargando Plan...</p>
+        <p className="text-white/40 text-xs font-black uppercase tracking-widest text-center">
+          Iniciando Plan de Nutrición...<br />
+          <span className="opacity-40 text-[9px] mt-2 block">Cargando datos desde la nube</span>
+        </p>
       </div>
     );
   }
 
   if (!user) {
     return (
-      <div className="h-full w-full flex flex-col items-center justify-center p-8 bg-black">
+      <div className="h-full w-full flex flex-col items-center justify-center p-8 bg-black fade-in">
         <div className="text-center space-y-16 max-w-sm w-full">
           <div className="space-y-6">
-            <div className="w-24 h-24 bg-blue-600 rounded-[32px] mx-auto flex items-center justify-center rotate-3 border border-white/10">
+            <div className="w-24 h-24 bg-blue-600 rounded-[32px] mx-auto flex items-center justify-center rotate-3 border border-white/10 shadow-2xl">
               <i className="fas fa-bolt text-white text-5xl"></i>
             </div>
             <div className="space-y-2">
@@ -185,7 +173,7 @@ const AppContent: React.FC = () => {
           >
             {t('im_builder')}
           </button>
-          <div className="mt-8 opacity-40 text-[9px] font-mono text-center">v1.6.0 (Final Stability Fix)</div>
+          <div className="mt-8 opacity-40 text-[9px] font-mono text-center">v1.6.0 (Global Force Upgrade)</div>
         </div>
       </div>
     );
@@ -208,7 +196,7 @@ const AppContent: React.FC = () => {
             <div className="max-w-md mx-auto px-6 py-12 pb-32">
               <div className="flex justify-between items-start mb-10 text-main">
                 <div>
-                  <h1 className="text-4xl font-black">{t('my_plans')}</h1>
+                  <h1 className="text-4xl font-black tracking-tight">{t('my_plans')}</h1>
                   <p className="text-sub font-medium opacity-50">{t('builder_panel')}</p>
                 </div>
                 <button onClick={logout} className="bg-red-500/10 text-red-500 px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-widest">{t('close')}</button>
@@ -260,7 +248,6 @@ const AppContent: React.FC = () => {
         </div>
       )}
 
-      {/* DELETE MODAL */}
       {showDeleteConfirm && (
         <div className="fixed inset-0 z-[300] bg-black/80 backdrop-blur-md flex items-center justify-center p-6" onClick={() => setShowDeleteConfirm(null)}>
           <div className="ios-card w-full max-w-sm rounded-[40px] p-8 bg-[var(--card-bg)] border border-[var(--border-color)] space-y-6" onClick={e => e.stopPropagation()}>
@@ -280,3 +267,4 @@ const AppContent: React.FC = () => {
 };
 
 export default App;
+
