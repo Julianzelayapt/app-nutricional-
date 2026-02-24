@@ -15,6 +15,19 @@
     <meta http-equiv="Pragma" content="no-cache" />
     <meta http-equiv="Expires" content="0" />
     <script>
+        // EMERGENCY ERROR CATCHER (Pre-React)
+        window.onerror = function (msg, url, lineNo, columnNo, error) {
+            const root = document.getElementById('root');
+            if (root) {
+                root.innerHTML = '<div style="background:#450a0a; color:white; padding:40px; font-family:sans-serif; height:100vh;">' +
+                    '<h1 style="color:#f87171">SYSTEM ERROR (Pre-Boot)</h1>' +
+                    '<p>La app no pudo iniciar. Probablemente falte una dependencia o el navegador sea muy viejo.</p>' +
+                    '<pre style="background:black; padding:20px; font-size:12px; border-radius:10px;">' + msg + '\n' + lineNo + ':' + columnNo + '</pre>' +
+                    '</div>';
+            }
+            return false;
+        };
+
         function forceUpdate() {
             localStorage.clear();
             sessionStorage.clear();
@@ -339,15 +352,6 @@
             }
         }
     </style>
-    <script type="importmap">
-{
-  "imports": {
-    "react/": "https://esm.sh/react@^19.2.4/",
-    "react": "https://esm.sh/react@^19.2.4",
-    "react-dom/": "https://esm.sh/react-dom@^19.2.4/"
-  }
-}
-</script>
     <link rel="stylesheet" href="/index.css">
 </head>
 
