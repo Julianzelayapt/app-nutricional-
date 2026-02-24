@@ -194,41 +194,29 @@ const App: React.FC = () => {
   // ---------------------------------------------------------------------------
   // CRITICAL: DISABLE LOGIN SCREEN IF LINK IS DETECTED
   // ---------------------------------------------------------------------------
-  // ---------------------------------------------------------------------------
-  // EMERGENCY BYPASS SYSTEM (The "Nuclear" Option)
-  // ---------------------------------------------------------------------------
   const currentUrl = window.location.href.toLowerCase();
   const hasDietSignal = currentUrl.includes('dietid');
+  const storedDietId = localStorage.getItem('mm_active_diet_id');
+  const storedRole = localStorage.getItem('mm_user_role');
 
-  if (!user && hasDietSignal) {
-    // 1. Try to extract ID (Robustly)
-    const effectiveDietId = getParam('dietId');
+  // IMMEDIATE BYPASS: If we see a dietId in URL OR we have a stored client session
+  if (!user && (hasDietSignal || (storedRole === UserRole.CLIENT && storedDietId))) {
+    const effectiveDietId = getParam('dietId') || storedDietId;
 
-    // 2. If we found an ID, FORCE THE VIEWER
     if (effectiveDietId) {
-      // Silent Auth Trigger (Anti-Race Condition)
-      if (!supabase.auth.getSession().then(s => s.data.session)) {
-        supabase.auth.signInAnonymously().catch(() => { });
+      // 1. Silent Persist
+      if (hasDietSignal) {
+        localStorage.setItem('mm_user_role', UserRole.CLIENT);
+        localStorage.setItem('mm_active_diet_id', effectiveDietId);
       }
+      
+      // 2. Auth Trigger
+      supabase.auth.signInAnonymously().catch(() => { });
 
-      console.log("EMERGENCY BYPASS: Rendering Viewer for", effectiveDietId);
-      return <DietViewer dietId={effectiveDietId} onBack={logout} />;
+      // 3. Render Viewer immediately - NO LOGIN SCREEN
+      console.log("BYPASS: Rendering Viewer for", effectiveDietId);
+      return <DietViewer dietId={effectiveDietId} />;
     }
-
-    // 3. If we see "dietId" but can't find the value, Show Error (NOT LOGIN)
-    return (
-      <div className="h-full w-full flex flex-col items-center justify-center bg-black text-white p-6 text-center space-y-4">
-        <div className="w-16 h-16 rounded-full bg-red-500/20 flex items-center justify-center mb-2">
-          <i className="fas fa-link text-red-500 text-2xl"></i>
-        </div>
-        <h2 className="text-xl font-black uppercase tracking-widest text-red-500">Enlace No Válido</h2>
-        <p className="opacity-60 text-sm max-w-[280px]">Detectamos un enlace de dieta, pero no pudimos leer el ID correctamente.</p>
-        <p className="text-[10px] font-mono opacity-30 bg-white/5 p-2 rounded break-all">{window.location.href}</p>
-        <button onClick={() => window.location.reload()} className="bg-white/10 text-white px-6 py-3 rounded-full font-black text-xs uppercase tracking-widest mt-4">
-          Reintentar
-        </button>
-      </div>
-    );
   }
 
   if (!user) {
