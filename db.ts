@@ -238,3 +238,4 @@ export class DB {
     }, { onConflict: 'diet_id,date' });
   }
 }
+
