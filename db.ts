@@ -235,6 +235,6 @@ export class DB {
       diet_id: dietId,
       date: log.date,
       completed_meal_ids: log.completedMealIds
-    });
+    }, { onConflict: 'diet_id,date' });
   }
 }
