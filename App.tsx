@@ -5,18 +5,21 @@ import { DietEditor } from './components/DietEditor';
 import { DietViewer } from './components/DietViewer';
 import { useI18n } from './i18n';
 
-// 1. CLASS ERROR BOUNDARY (The only way to catch all React errors)
-class ErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean, error: any }> {
-  constructor(props: any) {
-    super(props);
-    this.state = { hasError: false, error: null };
-  }
-  static getDerivedStateFromError(error: any) {
+// 1. CLASS ERROR BOUNDARY (Properly typed to avoid build errors)
+interface EBProps { children: ReactNode; }
+interface EBState { hasError: boolean; error: any; }
+
+class ErrorBoundary extends Component<EBProps, EBState> {
+  public state: EBState = { hasError: false, error: null };
+
+  static getDerivedStateFromError(error: any): EBState {
     return { hasError: true, error };
   }
+
   componentDidCatch(error: any, errorInfo: any) {
     console.error("ErrorBoundary caught an error", error, errorInfo);
   }
+
   render() {
     if (this.state.hasError) {
       return (
@@ -49,70 +52,70 @@ const App: React.FC = () => {
 };
 
 const AppContent: React.FC = () => {
-  // Ultra-robust param detection (handles ?, #, and case-insensitivity)
+  // HYPER-ROBUST param detection (handles ?, #, and direct string search)
   const getParam = (name: string) => {
-    // 1. Try standard query string
-    const search = new URLSearchParams(window.location.search);
-    for (const [key, value] of search.entries()) {
-      if (key.toLowerCase() === name.toLowerCase()) return value;
+    // 1. Standard search
+    const s = new URLSearchParams(window.location.search);
+    if (s.get(name)) return s.get(name);
+
+    // 2. Hash search (e.g., #dietId=xxx or #/path?dietId=xxx)
+    const h = window.location.hash.substring(1);
+    const hp = new URLSearchParams(h.includes('?') ? h.split('?')[1] : h);
+    if (hp.get(name)) return hp.get(name);
+
+    // 3. Fallback: manual splitting for weird URL formats
+    const all = window.location.href;
+    const parts = all.split(/[?&#]/);
+    for (const p of parts) {
+      if (p.toLowerCase().startsWith(name.toLowerCase() + '=')) {
+        return p.split('=')[1];
+      }
     }
-    // 2. Try hash fragments (e.g., #dietId=xxx)
-    const hash = window.location.hash.substring(1);
-    const hashParams = new URLSearchParams(hash.includes('?') ? hash.split('?')[1] : hash);
-    for (const [key, value] of hashParams.entries()) {
-      if (key.toLowerCase() === name.toLowerCase()) return value;
-    }
-    // 3. Fallback: regex search on whole URL
-    const regex = new RegExp(`[?&#]${name}=([^&#]*)`, 'i');
-    const match = window.location.href.match(regex);
-    return match ? match[1] : null;
+    return null;
   };
 
   const [user, setUser] = useState<User | null>(() => {
-    const dietIdParam = getParam('dietId');
-    const roleParam = getParam('role')?.toUpperCase();
-    const savedRole = localStorage.getItem('mm_user_role');
-    const savedDietId = localStorage.getItem('mm_active_diet_id');
+    const dId = getParam('dietId');
+    const role = getParam('role')?.toUpperCase();
+    const sRole = localStorage.getItem('mm_user_role');
+    const sDId = localStorage.getItem('mm_active_diet_id');
 
-    // IF LINK HAS dietId: FORCE CLIENT ROLE (unless explicitly role=CREATOR)
-    if (dietIdParam) {
-      if (roleParam === 'CREATOR') return { id: 'builder', name: 'Coach', role: UserRole.CREATOR };
-
-      // Auto-save session for link users
+    if (dId) {
+      if (role === 'CREATOR') return { id: 'builder', name: 'Coach', role: UserRole.CREATOR };
+      // Force Client role for Link users
       localStorage.setItem('mm_user_role', UserRole.CLIENT);
-      localStorage.setItem('mm_active_diet_id', dietIdParam);
+      localStorage.setItem('mm_active_diet_id', dId);
       return { id: 'client-guest', name: 'Client', role: UserRole.CLIENT };
     }
-
-    // Recover previous session
-    if (savedRole === UserRole.CREATOR) return { id: 'builder', name: 'Coach', role: UserRole.CREATOR };
-    if (savedRole === UserRole.CLIENT && savedDietId) return { id: 'client-guest', name: 'Client', role: UserRole.CLIENT };
-
+    if (sRole === UserRole.CREATOR) return { id: 'builder', name: 'Coach', role: UserRole.CREATOR };
+    if (sRole === UserRole.CLIENT && sDId) return { id: 'client-guest', name: 'Client', role: UserRole.CLIENT };
     return null;
   });
 
   const [diets, setDiets] = useState<Diet[]>([]);
   const [activeDietId, setActiveDietId] = useState<string | null>(() => {
-    const dietIdParam = getParam('dietId');
-    if (dietIdParam) return dietIdParam;
-    const savedRole = localStorage.getItem('mm_user_role');
-    if (savedRole === UserRole.CREATOR) return null;
-    return localStorage.getItem('mm_active_diet_id');
+    return getParam('dietId') || (localStorage.getItem('mm_user_role') === UserRole.CLIENT ? localStorage.getItem('mm_active_diet_id') : null);
   });
+
+  // Aggressive Hash Listener (Handles navigation within PWA/App mode)
+  useEffect(() => {
+    const handleNavigation = () => {
+      const dId = getParam('dietId');
+      if (dId && !user) {
+        setUser({ id: 'client-guest', name: 'Client', role: UserRole.CLIENT });
+        setActiveDietId(dId);
+        localStorage.setItem('mm_user_role', UserRole.CLIENT);
+        localStorage.setItem('mm_active_diet_id', dId);
+      }
+    };
+    window.addEventListener('hashchange', handleNavigation);
+    return () => window.removeEventListener('hashchange', handleNavigation);
+  }, [user]);
 
   const { t, lang, changeLanguage } = useI18n();
   const [loading, setLoading] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
   const [theme, setTheme] = useState<'dark' | 'light'>((localStorage.getItem('mm_theme') as any) || 'dark');
-
-  // Sync session manually during init for link users
-  useEffect(() => {
-    const dietIdParam = getParam('dietId');
-    if (dietIdParam && user?.role === UserRole.CLIENT) {
-      localStorage.setItem('mm_user_role', UserRole.CLIENT);
-      localStorage.setItem('mm_active_diet_id', dietIdParam);
-    }
-  }, []);
 
   useEffect(() => {
     localStorage.setItem('mm_theme', theme);
@@ -122,14 +125,9 @@ const AppContent: React.FC = () => {
 
   const loadDiets = async () => {
     try {
-      setLoading(true);
       const data = await DB.getDiets();
       setDiets(data);
-    } catch (e) {
-      console.error("Error loading diets", e);
-    } finally {
-      setLoading(false);
-    }
+    } catch (e) { console.error(e); }
   };
 
   useEffect(() => {
@@ -141,6 +139,7 @@ const AppContent: React.FC = () => {
     localStorage.removeItem('mm_active_diet_id');
     setUser({ id: 'builder-' + Date.now(), name: 'Builder', role: UserRole.CREATOR });
     setActiveDietId(null);
+    loadDiets();
     supabase.auth.signInAnonymously().catch(() => { });
   };
 
@@ -156,17 +155,15 @@ const AppContent: React.FC = () => {
     setShowDeleteConfirm(null);
   };
 
-  // BYPASS RENDER FOR CLIENT LINKS
-  const currentUrl = window.location.href.toLowerCase();
-  const hasDietSignal = currentUrl.includes('dietid');
-  const storedDietId = localStorage.getItem('mm_active_diet_id');
-  const storedRole = localStorage.getItem('mm_user_role');
-
-  if (!user && (hasDietSignal || (storedRole === UserRole.CLIENT && storedDietId))) {
-    const effectiveDietId = getParam('dietId') || storedDietId;
-    if (effectiveDietId) {
-      return <DietViewer dietId={effectiveDietId} />;
-    }
+  // 4. AGGRESSIVE REDIRECT SPLASH
+  // If we have a dietId but no user yet, show ONLY the loading screen to avoid flickering login buttons
+  if (!user && (getParam('dietId') || localStorage.getItem('mm_active_diet_id'))) {
+    return (
+      <div className="h-full w-full flex flex-col items-center justify-center gap-4 bg-black">
+        <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+        <p className="text-white/40 text-xs font-black uppercase tracking-widest">Cargando Plan...</p>
+      </div>
+    );
   }
 
   if (!user) {
@@ -188,7 +185,7 @@ const AppContent: React.FC = () => {
           >
             {t('im_builder')}
           </button>
-          <div className="mt-8 opacity-40 text-[9px] font-mono text-center">v1.6.0 (Diagnostic Mode)</div>
+          <div className="mt-8 opacity-40 text-[9px] font-mono text-center">v1.6.0 (Final Stability Fix)</div>
         </div>
       </div>
     );
