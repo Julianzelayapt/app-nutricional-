@@ -215,27 +215,43 @@ export class DB {
     await supabase.from('diets').delete().eq('id', id);
   }
 
-  // --- TRACKING ---
+  // --- TRACKING (Persistence Fix) ---
   static async getTracking(dietId: string): Promise<Record<string, TrackingLog>> {
-    const { data, error } = await supabase
-      .from('tracking_logs') // You'll need to create this table too if tracking is needed
-      .select('date, completed_meal_ids')
-      .eq('diet_id', dietId);
+    try {
+      const { data, error } = await supabase
+        .from('tracking_logs')
+        .select('date, completed_meal_ids')
+        .eq('diet_id', dietId);
 
-    if (error) return {};
-    const map: Record<string, TrackingLog> = {};
-    data.forEach((row: any) => {
-      map[row.date] = { date: row.date, completedMealIds: row.completed_meal_ids };
-    });
-    return map;
+      if (error) {
+        console.warn("Tracking error (might be missing table):", error);
+        return {};
+      }
+
+      const map: Record<string, TrackingLog> = {};
+      (data || []).forEach((row: any) => {
+        map[row.date] = { date: row.date, completedMealIds: Array.isArray(row.completed_meal_ids) ? row.completed_meal_ids : [] };
+      });
+      return map;
+    } catch (e) {
+      console.error("getTracking Failed:", e);
+      return {};
+    }
   }
 
   static async saveTrackingLog(dietId: string, log: TrackingLog) {
-    await supabase.from('tracking_logs').upsert({
-      diet_id: dietId,
-      date: log.date,
-      completed_meal_ids: log.completedMealIds
-    }, { onConflict: 'diet_id,date' });
+    try {
+      // Ensure we are sending a valid array to the TEXT[] column
+      const { error } = await supabase.from('tracking_logs').upsert({
+        diet_id: dietId,
+        date: log.date,
+        completed_meal_ids: log.completedMealIds || []
+      }, { onConflict: 'diet_id,date' });
+
+      if (error) console.error("saveTrackingLog error:", error);
+    } catch (e) {
+      console.error("Critical saveTrackingLog failure:", e);
+    }
   }
 }
 
