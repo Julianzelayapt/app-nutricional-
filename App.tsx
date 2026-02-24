@@ -209,7 +209,7 @@ const App: React.FC = () => {
         localStorage.setItem('mm_user_role', UserRole.CLIENT);
         localStorage.setItem('mm_active_diet_id', effectiveDietId);
       }
-      
+
       // 2. Auth Trigger
       supabase.auth.signInAnonymously().catch(() => { });
 
@@ -241,49 +241,8 @@ const App: React.FC = () => {
               {t('im_builder')}
             </button>
 
-            <div className="pt-8 space-y-4">
-              <p className="text-white/40 text-[10px] font-black uppercase tracking-[0.2em]">{t('im_client')}</p>
-
-              <div className="bg-white/5 p-6 rounded-[24px] border border-white/10 space-y-4">
-                <p className="text-white/40 text-[9px] font-medium leading-relaxed">
-                  ¿El enlace no abre? Ingresa el ID manualmente:
-                </p>
-                <div className="flex gap-2">
-                  <input
-                    placeholder="Ej: d-x8s9..."
-                    className="bg-black/20 flex-1 rounded-xl px-4 py-3 text-white text-xs font-bold outline-none border border-white/5 focus:border-blue-500/50 transition-colors uppercase placeholder:normal-case"
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        const val = (e.target as HTMLInputElement).value.trim();
-                        if (val) {
-                          setUser({ id: 'client-guest', name: 'Client', role: UserRole.CLIENT });
-                          setActiveDietId(val);
-                          localStorage.setItem('mm_user_role', UserRole.CLIENT);
-                          localStorage.setItem('mm_active_diet_id', val);
-                        }
-                      }
-                    }}
-                    id="manual-diet-id"
-                  />
-                  <button
-                    onClick={() => {
-                      const val = (document.getElementById('manual-diet-id') as HTMLInputElement).value.trim();
-                      if (val) {
-                        setUser({ id: 'client-guest', name: 'Client', role: UserRole.CLIENT });
-                        setActiveDietId(val);
-                        localStorage.setItem('mm_user_role', UserRole.CLIENT);
-                        localStorage.setItem('mm_active_diet_id', val);
-                      }
-                    }}
-                    className="bg-blue-600 px-4 rounded-xl text-white font-black text-xs active:scale-95 transition-transform"
-                  >
-                    GO
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            <div className="mt-8 opacity-20 text-[9px] font-mono text-center">v1.5.5 (Manual Access)</div>
+            {/* Client Access section removed as requested - automatic link only */}
+            <div className="mt-8 opacity-20 text-[9px] font-mono text-center">v1.6.0 (Cloud Sync)</div>
           </div>
         </div>
       </div>
