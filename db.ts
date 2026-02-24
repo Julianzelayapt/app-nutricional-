@@ -2,8 +2,10 @@
 import { createClient } from '@supabase/supabase-js';
 import { Food, Diet, TrackingLog, WeekPlan, DayPlan, Meal, FoodEntry } from './types';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+// HARDCODED CREDENTIALS - Forced fonctionnement as requested
+const supabaseUrl = 'https://gpvjpjtpsjpeztbwufld.supabase.co';
+const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdwdmpwanRwc2pwZXp0Ynd1ZmxkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk4Njg4OTUsImV4cCI6MjA4NTQ0NDg5NX0.Lj0vfRi8X2H-AuRs3N_-S8lzH-VipixgCjvnduGQaQc';
+
 export const supabase = createClient(supabaseUrl, supabaseKey);
 
 export class DB {
