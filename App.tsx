@@ -49,17 +49,20 @@ const App: React.FC = () => {
 };
 
 const AppContent: React.FC = () => {
-  // Ultra-robust param detection
+  // Ultra-robust param detection (handles ?, #, and case-insensitivity)
   const getParam = (name: string) => {
+    // 1. Try standard query string
     const search = new URLSearchParams(window.location.search);
     for (const [key, value] of search.entries()) {
       if (key.toLowerCase() === name.toLowerCase()) return value;
     }
-    const rawHash = window.location.hash.substring(1).split('?')[0];
-    const hashParams = new URLSearchParams(window.location.hash.includes('?') ? window.location.hash.split('?')[1] : rawHash);
+    // 2. Try hash fragments (e.g., #dietId=xxx)
+    const hash = window.location.hash.substring(1);
+    const hashParams = new URLSearchParams(hash.includes('?') ? hash.split('?')[1] : hash);
     for (const [key, value] of hashParams.entries()) {
       if (key.toLowerCase() === name.toLowerCase()) return value;
     }
+    // 3. Fallback: regex search on whole URL
     const regex = new RegExp(`[?&#]${name}=([^&#]*)`, 'i');
     const match = window.location.href.match(regex);
     return match ? match[1] : null;
@@ -71,12 +74,20 @@ const AppContent: React.FC = () => {
     const savedRole = localStorage.getItem('mm_user_role');
     const savedDietId = localStorage.getItem('mm_active_diet_id');
 
+    // IF LINK HAS dietId: FORCE CLIENT ROLE (unless explicitly role=CREATOR)
     if (dietIdParam) {
       if (roleParam === 'CREATOR') return { id: 'builder', name: 'Coach', role: UserRole.CREATOR };
+
+      // Auto-save session for link users
+      localStorage.setItem('mm_user_role', UserRole.CLIENT);
+      localStorage.setItem('mm_active_diet_id', dietIdParam);
       return { id: 'client-guest', name: 'Client', role: UserRole.CLIENT };
     }
+
+    // Recover previous session
     if (savedRole === UserRole.CREATOR) return { id: 'builder', name: 'Coach', role: UserRole.CREATOR };
     if (savedRole === UserRole.CLIENT && savedDietId) return { id: 'client-guest', name: 'Client', role: UserRole.CLIENT };
+
     return null;
   });
 
@@ -177,7 +188,7 @@ const AppContent: React.FC = () => {
           >
             {t('im_builder')}
           </button>
-          <div className="mt-8 opacity-40 text-[9px] font-mono text-center">v1.6.0 (Final Fix)</div>
+          <div className="mt-8 opacity-40 text-[9px] font-mono text-center">v1.6.0 (Diagnostic Mode)</div>
         </div>
       </div>
     );
@@ -272,4 +283,3 @@ const AppContent: React.FC = () => {
 };
 
 export default App;
-
