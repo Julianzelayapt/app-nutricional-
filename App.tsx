@@ -177,7 +177,7 @@ const AppContent: React.FC = () => {
           >
             {t('im_builder')}
           </button>
-          <div className="mt-8 opacity-40 text-[9px] font-mono text-center">v1.6.0 (Diagnostic Mode)</div>
+          <div className="mt-8 opacity-40 text-[9px] font-mono text-center">v1.6.0 (Final Fix)</div>
         </div>
       </div>
     );
@@ -272,3 +272,4 @@ const AppContent: React.FC = () => {
 };
 
 export default App;
+
